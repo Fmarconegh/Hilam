@@ -1,10 +1,11 @@
 "use client";
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
+import { SendHorizonal } from "lucide-react";
 
 export default function Page() {
   const [question, setQuestion] = useState("");
-  const [chat, setChat] = useState<{ user: string; ai: string; sources?: string }[]>([]);
+  const [chat, setChat] = useState<{ user: string; ai: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -12,19 +13,29 @@ export default function Page() {
 
   const handleAsk = async () => {
     if (!question.trim()) return;
+    const current = question;
     setLoading(true);
-    const currentQuestion = question;
     setQuestion("");
+    setChat((prev) => [...prev, { user: current, ai: "..." }]);
+
     try {
       const res = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: currentQuestion }),
+        body: JSON.stringify({ question: current }),
       });
       const data = await res.json();
-      setChat((prev) => [...prev, { user: currentQuestion, ai: data.answer, sources: data.sources }]);
-    } catch (err) {
-      setChat((prev) => [...prev, { user: currentQuestion, ai: "❌ Error al conectar con HilamIA." }]);
+      setChat((prev) =>
+        prev.map((entry, idx) =>
+          idx === prev.length - 1 ? { ...entry, ai: data.answer } : entry
+        )
+      );
+    } catch {
+      setChat((prev) =>
+        prev.map((entry, idx) =>
+          idx === prev.length - 1 ? { ...entry, ai: "❌ Error al conectar con HilamIA." } : entry
+        )
+      );
     }
     setLoading(false);
   };
@@ -34,33 +45,32 @@ export default function Page() {
   }, [chat]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white p-4 text-gray-800 font-sans relative overflow-hidden">
-      {/* Nube Inteligente */}
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex flex-col items-center justify-start p-4">
+      {/* Nube animada */}
       <motion.div
-        className="absolute top-0 left-1/2 transform -translate-x-1/2 mt-6 w-64 h-64 bg-gradient-to-br from-orange-200 to-orange-100 rounded-full blur-3xl opacity-70 shadow-2xl z-0"
-        animate={{ scale: [1, 1.1, 1], opacity: [0.7, 1, 0.7] }}
-        transition={{ duration: 6, repeat: Infinity }}
+        className="absolute top-10 right-10 w-64 h-64 bg-orange-200 rounded-full blur-3xl opacity-60 z-0"
+        animate={{ scale: [1, 1.1, 1] }}
+        transition={{ repeat: Infinity, duration: 5 }}
       />
 
-      <div className="relative z-10 max-w-2xl mx-auto bg-white/90 shadow-xl rounded-3xl p-6">
-        <h1 className="text-3xl font-bold text-orange-600 mb-2">HilamIA</h1>
-        <p className="mb-4 text-gray-700">
+      <div className="w-full max-w-3xl bg-white shadow-xl rounded-2xl p-6 relative z-10">
+        <h1 className="text-3xl font-bold text-orange-600">HilamIA</h1>
+        <p className="text-gray-600 mt-1">
           Pregúntale a HilamIA sobre la nueva revolución de construir de forma eficiente y sustentable con madera.
         </p>
 
-        {/* Chat histórico */}
-        <div className="h-96 overflow-y-auto space-y-4 p-2 border rounded-md bg-gray-50">
-          {chat.map((msg, idx) => (
-            <div key={idx} className="space-y-1">
+        {/* Chat box */}
+        <div className="mt-4 max-h-[400px] overflow-y-auto space-y-4 pr-2 scroll-smooth">
+          {chat.map((entry, i) => (
+            <div key={i} className="space-y-2">
               <div className="text-right">
-                <span className="inline-block bg-orange-100 text-orange-800 px-3 py-1 rounded-xl">{msg.user}</span>
+                <span className="inline-block px-3 py-2 bg-orange-100 text-orange-700 rounded-xl">
+                  {entry.user}
+                </span>
               </div>
               <div className="text-left">
-                <span className="inline-block bg-white shadow px-3 py-2 rounded-xl">
-                  {msg.ai}
-                  {msg.sources && (
-                    <div className="text-xs text-gray-500 mt-1 italic">Fuente: {msg.sources}</div>
-                  )}
+                <span className="inline-block px-3 py-2 bg-gray-100 rounded-xl">
+                  {entry.ai}
                 </span>
               </div>
             </div>
@@ -68,23 +78,28 @@ export default function Page() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input y botón */}
-        <div className="mt-4 flex flex-col sm:flex-row gap-2">
-          <textarea
-            className="flex-1 p-3 border rounded-xl shadow focus:outline-none focus:ring-2 focus:ring-orange-300 resize-none"
-            placeholder="¿Qué quieres saber?"
+        {/* Input */}
+        <div className="flex items-center mt-4 gap-2">
+          <input
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
-            rows={2}
+            onKeyDown={(e) => e.key === "Enter" && handleAsk()}
+            placeholder="¿Qué quieres saber?"
+            className="flex-1 px-4 py-3 border border-orange-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
           />
           <button
             onClick={handleAsk}
             disabled={loading}
-            className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-xl shadow-lg transition-all duration-200"
+            className="px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl shadow-md transition"
           >
-            {loading ? "Pensando..." : "Preguntar"}
+            {loading ? "..." : <SendHorizonal size={20} />}
           </button>
         </div>
+
+        {/* Footer */}
+        <p className="text-sm text-center text-gray-500 mt-3">
+          ¿Tienes otra duda? HilamIA está aquí para ayudarte.
+        </p>
       </div>
     </div>
   );
