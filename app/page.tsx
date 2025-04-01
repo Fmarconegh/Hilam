@@ -1,105 +1,91 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
-import { SendHorizonal } from "lucide-react";
+
+import { useState } from "react";
+import { Send } from "lucide-react";
 
 export default function Page() {
   const [question, setQuestion] = useState("");
-  const [chat, setChat] = useState<{ user: string; ai: string }[]>([]);
+  const [response, setResponse] = useState<{ answer: string; sources: string } | null>(null);
   const [loading, setLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
   const API_URL = "https://da643203-bea5-4c84-9648-c9f294b2a682-00-3nw6v6g1vn8y8.spock.replit.dev/api/ask";
+
+  const checkBackendStatus = async () => {
+    try {
+      const res = await fetch(API_URL.replace("/api/ask", "/"));
+      const data = await res.json();
+      return data?.message?.includes("activo");
+    } catch {
+      return false;
+    }
+  };
 
   const handleAsk = async () => {
     if (!question.trim()) return;
-    const current = question;
     setLoading(true);
-    setQuestion("");
-    setChat((prev) => [...prev, { user: current, ai: "..." }]);
+
+    const backendOk = await checkBackendStatus();
+    if (!backendOk) {
+      setResponse({
+        answer: "❌ No se pudo conectar con HilamIA. Intenta nuevamente en unos segundos.",
+        sources: ""
+      });
+      setLoading(false);
+      return;
+    }
 
     try {
       const res = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: current }),
+        body: JSON.stringify({ question }),
       });
       const data = await res.json();
-      setChat((prev) =>
-        prev.map((entry, idx) =>
-          idx === prev.length - 1 ? { ...entry, ai: data.answer } : entry
-        )
-      );
-    } catch {
-      setChat((prev) =>
-        prev.map((entry, idx) =>
-          idx === prev.length - 1 ? { ...entry, ai: "❌ Error al conectar con HilamIA." } : entry
-        )
-      );
+      setResponse(data);
+    } catch (err) {
+      setResponse({
+        answer: "❌ Error inesperado al contactar con HilamIA.",
+        sources: ""
+      });
     }
+
     setLoading(false);
   };
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chat]);
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex flex-col items-center justify-start p-4">
-      {/* Nube animada */}
-      <motion.div
-        className="absolute top-10 right-10 w-64 h-64 bg-orange-200 rounded-full blur-3xl opacity-60 z-0"
-        animate={{ scale: [1, 1.1, 1] }}
-        transition={{ repeat: Infinity, duration: 5 }}
-      />
-
-      <div className="w-full max-w-3xl bg-white shadow-xl rounded-2xl p-6 relative z-10">
+    <div className="min-h-screen bg-gradient-to-b from-white to-orange-50 flex justify-center items-start pt-10">
+      <div className="w-full max-w-2xl bg-white shadow-xl rounded-2xl p-6 space-y-4">
         <h1 className="text-3xl font-bold text-orange-600">HilamIA</h1>
-        <p className="text-gray-600 mt-1">
+        <p className="text-gray-600">
           Pregúntale a HilamIA sobre la nueva revolución de construir de forma eficiente y sustentable con madera.
         </p>
 
-        {/* Chat box */}
-        <div className="mt-4 max-h-[400px] overflow-y-auto space-y-4 pr-2 scroll-smooth">
-          {chat.map((entry, i) => (
-            <div key={i} className="space-y-2">
-              <div className="text-right">
-                <span className="inline-block px-3 py-2 bg-orange-100 text-orange-700 rounded-xl">
-                  {entry.user}
-                </span>
-              </div>
-              <div className="text-left">
-                <span className="inline-block px-3 py-2 bg-gray-100 rounded-xl">
-                  {entry.ai}
-                </span>
-              </div>
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
-        </div>
+        {response && (
+          <div className="bg-gray-50 p-4 rounded-xl border border-orange-100">
+            <p className="text-gray-800 whitespace-pre-line">{response.answer}</p>
+            {response.sources && (
+              <p className="text-xs text-gray-500 mt-2 italic">Fuente(s): {response.sources}</p>
+            )}
+          </div>
+        )}
 
-        {/* Input */}
-        <div className="flex items-center mt-4 gap-2">
+        <div className="flex items-center space-x-2">
           <input
+            type="text"
+            placeholder="¿Qué quieres saber?"
+            className="flex-1 border border-orange-300 rounded-xl px-4 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleAsk()}
-            placeholder="¿Qué quieres saber?"
-            className="flex-1 px-4 py-3 border border-orange-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
           />
           <button
             onClick={handleAsk}
             disabled={loading}
-            className="px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl shadow-md transition"
+            className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-xl shadow transition"
           >
-            {loading ? "..." : <SendHorizonal size={20} />}
+            <Send size={16} />
           </button>
         </div>
-
-        {/* Footer */}
-        <p className="text-sm text-center text-gray-500 mt-3">
-          ¿Tienes otra duda? HilamIA está aquí para ayudarte.
-        </p>
+        <p className="text-sm text-gray-500 text-center">¿Tienes otra duda? HilamIA está aquí para ayudarte.</p>
       </div>
     </div>
   );
